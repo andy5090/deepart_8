@@ -156,9 +156,10 @@ class ImplementYourself(object):
             models.resnet.BasicBlock, [2, 2, 2, 2], num_classes=num_classes
         )
 
-    def get_resnet152(num_classes=150):
+    @staticmethod
+    def get_resnet34(num_classes=150):
         return ImplementYourself.FeatResNet(
-            models.ResNet.Bottleneck, [3, 8, 36, 3], num_classes=num_classes
+            models.ResNet.BasicBlock, [3, 4, 6, 3], num_classes=num_classes
         )
 
     @staticmethod
@@ -211,7 +212,7 @@ if __name__ == "__main__":
     eval_split = config.eval_split
     mode = config.mode
 
-    model = ImplementYourself.get_resnet152(num_classes=num_classes)
+    model = ImplementYourself.get_resnet34(num_classes=num_classes)
     loss_fn = nn.CrossEntropyLoss()
     ImplementYourself.init_weight(model)
 
