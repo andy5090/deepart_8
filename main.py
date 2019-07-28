@@ -244,7 +244,7 @@ if __name__ == "__main__":
         nsml.paused(scope=locals())
 
     if mode == "train":
-        if IS_ON_NSML:
+        if not IS_ON_NSML:
             logger = logging.getLogger("ResNet")
             logger.setLevel(logging.INFO)
             fileHandler = logging.FileHandler("./test.log")
@@ -284,7 +284,7 @@ if __name__ == "__main__":
                             _epoch, num_epochs, loss.item(), elapsed, expected
                         )
                     )
-                    if IS_ON_NSML:
+                    if not IS_ON_NSML:
                         logger.info(
                             f"epoch : {_epoch}/{num_epochs}, loss : {loss.item()}, elapsed : {elapsed}"
                         )
@@ -300,7 +300,7 @@ if __name__ == "__main__":
             eval_result = local_eval(model, val_loader, val_label)
             elapsed = datetime.datetime.now() - epoch_start_time_
             print("[epoch {}] elapsed: {}".format(epoch + 1, elapsed))
-            if IS_ON_NSML:
+            if not IS_ON_NSML:
                 logger.info(
                     f"epoch : {epoch + 1}, elapsed : {elapsed}, eval_result : {eval_result}"
                 )
