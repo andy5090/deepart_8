@@ -23,7 +23,7 @@ import nsml
 from nsml import DATASET_PATH
 
 # TRAIN_DATASET_PATH = os.path.join(DATASET_PATH, 'train', 'train_data')
-TRAIN_DATASET_PATH = '../food_img/'
+TRAIN_DATASET_PATH = "../food_img/"
 
 
 def _infer(model, root_path, test_loader=None, local_val=False):
@@ -50,8 +50,7 @@ def _infer(model, root_path, test_loader=None, local_val=False):
       top1_reference_ids: 위에서 설명한 list 데이터 구조
     """
     if test_loader is None:
-        test_loader = test_data_loader(
-            root=os.path.join(root_path, 'test_data'))
+        test_loader = test_data_loader(root=os.path.join(root_path, "test_data"))
 
     # TODO 모델의 아웃풋을 적당히 가공하고 연산하여 각 query에 대해 매치가 되는 데이터베이스
     # TODO 이미지의 ID를 찾는 모듈을 구현 (현재 구현은 베이스라인 - L2 정규화 및 내적으로 가장
@@ -78,28 +77,29 @@ def _infer(model, root_path, test_loader=None, local_val=False):
             data_ids = np.append(data_ids, data_id, axis=0)
 
         if time.time() - s_t > 10:
-            print('Infer batch {}/{}.'.format(idx + 1, len(test_loader)))
+            print("Infer batch {}/{}.".format(idx + 1, len(test_loader)))
 
     score_matrix = feats.dot(feats.T)
     np.fill_diagonal(score_matrix, -np.inf)
     top1_reference_indices = np.argmax(score_matrix, axis=1)
     top1_reference_ids = [
-        [data_ids[idx], data_ids[top1_reference_indices[idx]]] for idx in
-        range(len(data_ids))]
+        [data_ids[idx], data_ids[top1_reference_indices[idx]]]
+        for idx in range(len(data_ids))
+    ]
 
     return top1_reference_ids
 
 
 def local_eval(model, test_loader=None, test_label_file=None):
-    prediction_file = 'pred_train.txt'
-    feed_infer(prediction_file,
-               lambda root_path: _infer(model,
-                                        root_path, test_loader=test_loader,
-                                        local_val=True))
-    metric_result = evaluation_metrics(
+    prediction_file = "pred_train.txt"
+    feed_infer(
         prediction_file,
-        test_label_file)
-    print('Eval result: {:.4f}'.format(metric_result))
+        lambda root_path: _infer(
+            model, root_path, test_loader=test_loader, local_val=True
+        ),
+    )
+    metric_result = evaluation_metrics(prediction_file, test_label_file)
+    print("Eval result: {:.4f}".format(metric_result))
     return metric_result
 
 
@@ -107,19 +107,19 @@ def bind_nsml(model, optimizer, scheduler):
     def save(dir_name, *args, **kwargs):
         os.makedirs(dir_name, exist_ok=True)
         state = {
-            'model': model.state_dict(),
-            'optimizer': optimizer.state_dict(),
-            'scheduler': scheduler.state_dict()
+            "model": model.state_dict(),
+            "optimizer": optimizer.state_dict(),
+            "scheduler": scheduler.state_dict(),
         }
-        torch.save(state, os.path.join(dir_name, 'model.pth'))
-        print('saved')
+        torch.save(state, os.path.join(dir_name, "model.pth"))
+        print("saved")
 
     def load(dir_name, *args, **kwargs):
-        state = torch.load(os.path.join(dir_name, 'model.pth'))
-        model.load_state_dict(state['model'])
-        optimizer.load_state_dict(state['optimizer'])
-        scheduler.load_state_dict(state['scheduler'])
-        print('loaded')
+        state = torch.load(os.path.join(dir_name, "model.pth"))
+        model.load_state_dict(state["model"])
+        optimizer.load_state_dict(state["optimizer"])
+        scheduler.load_state_dict(state["scheduler"])
+        print("loaded")
 
     def infer(root_path, top_k=1):
         return _infer(model, root_path)
@@ -152,16 +152,21 @@ class ImplementYourself(object):
 
     @staticmethod
     def get_resnet18(num_classes=150):
-        return ImplementYourself.FeatResNet(models.resnet.BasicBlock,
-                                            [2, 2, 2, 2],
-                                            num_classes=num_classes)
+        return ImplementYourself.FeatResNet(
+            models.resnet.BasicBlock, [2, 2, 2, 2], num_classes=num_classes
+        )
+
+    def get_resnet152(num_classes=150):
+        return ImplementYourself.FeatResNet(
+            models.ResNet.Bottleneck, [3, 8, 36, 3], num_classes=num_classes
+        )
 
     @staticmethod
     def init_weight(model):
         for m in model.modules():
             if isinstance(m, nn.Conv2d):
                 n = m.kernel_size[0] * m.kernel_size[1] * m.out_channels
-                m.weight.data.normal_(0, math.sqrt(2. / n))
+                m.weight.data.normal_(0, math.sqrt(2.0 / n))
             elif isinstance(m, nn.BatchNorm2d):
                 m.weight.data.fill_(1)
                 m.bias.data.zero_()
@@ -170,14 +175,16 @@ class ImplementYourself(object):
     def get_optimizer():
         return Adam(
             [param for param in model.parameters() if param.requires_grad],
-            lr=base_lr, weight_decay=1e-4)
+            lr=base_lr,
+            weight_decay=1e-4,
+        )
 
     @staticmethod
     def get_scheduler(optimizer):
         return StepLR(optimizer, step_size=40, gamma=0.1)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     # mode argument
     args = argparse.ArgumentParser()
     args.add_argument("--train_split", type=float, default=0.9)
@@ -186,11 +193,11 @@ if __name__ == '__main__':
     args.add_argument("--cuda", type=bool, default=True)
     args.add_argument("--num_epochs", type=int, default=100)
     args.add_argument("--print_iter", type=int, default=10)
-    args.add_argument("--eval_split", type=str, default='val')
+    args.add_argument("--eval_split", type=str, default="val")
 
     # reserved for nsml
     args.add_argument("--mode", type=str, default="train")
-    args.add_argument("--iteration", type=str, default='0')
+    args.add_argument("--iteration", type=str, default="0")
     args.add_argument("--pause", type=int, default=0)
 
     config = args.parse_args()
@@ -204,7 +211,7 @@ if __name__ == '__main__':
     eval_split = config.eval_split
     mode = config.mode
 
-    model = ImplementYourself.get_resnet18(num_classes=num_classes)
+    model = ImplementYourself.get_resnet152(num_classes=num_classes)
     loss_fn = nn.CrossEntropyLoss()
     ImplementYourself.init_weight(model)
 
@@ -219,19 +226,20 @@ if __name__ == '__main__':
     if config.pause:
         nsml.paused(scope=locals())
 
-    if mode == 'train':
+    if mode == "train":
         # TODO 아래 트레이닝 코드도 베이스라인입니다. 변형 또는 새로 구현 가능합니다.
         logger = logging.getLogger("ResNet18")
         logger.setLevel(logging.INFO)
 
-        fileHandler = logging.FileHandler('./test.log')
+        fileHandler = logging.FileHandler("./test.log")
         streamHandler = logging.StreamHandler()
 
         logger.addHandler(fileHandler)
         logger.addHandler(streamHandler)
 
         tr_loader, val_loader, val_label = data_loader_with_split(
-            root=TRAIN_DATASET_PATH, train_split=train_split)
+            root=TRAIN_DATASET_PATH, train_split=train_split
+        )
         time_ = datetime.datetime.now()
         num_batches = len(tr_loader)
 
@@ -241,6 +249,7 @@ if __name__ == '__main__':
             epoch_start_time_ = datetime.datetime.now()
             scheduler.step()
             model.train()
+            epoch_loss = 0
             for iter_, data in enumerate(tr_loader):
                 _, x, label = data
                 if cuda:
@@ -248,6 +257,9 @@ if __name__ == '__main__':
                     label = label.cuda()
                 pred = model(x)
                 loss = loss_fn(pred, label)
+
+                epoch_loss += loss
+
                 optimizer.zero_grad()
                 loss.backward()
                 optimizer.step()
@@ -255,14 +267,23 @@ if __name__ == '__main__':
                     elapsed = datetime.datetime.now() - time_
                     expected = elapsed * (num_batches / print_iter)
                     _epoch = epoch + ((iter_ + 1) / num_batches)
-                    print('[{:.3f}/{:d}] loss({}) '
-                          'elapsed {} expected per epoch {}'.format(
-                        _epoch, num_epochs, loss.item(),
-                        elapsed, expected))
-                    logger.info(f'epoch : {_epoch}/{num_epochs} loss : {loss.item()} elapsed : {elapsed}')
+                    print(
+                        "[{:.3f}/{:d}] loss({}) "
+                        "elapsed {} expected per epoch {}".format(
+                            _epoch, num_epochs, loss.item(), elapsed, expected
+                        )
+                    )
+                    logger.info(
+                        f"epoch : {_epoch}/{num_epochs} loss : {loss.item()} elapsed : {elapsed}"
+                    )
                     nsml.save(str(epoch + 1))
                     time_ = datetime.datetime.now()
-            local_eval(model, val_loader, val_label)            
+            local_eval(model, val_loader, val_label)
             elapsed = datetime.datetime.now() - epoch_start_time_
-            print('[epoch {}] elapsed: {}'.format(epoch + 1, elapsed))
-            logger.info(f'epoch : {epoch + 1}/{num_epochs} elapsed : {elapsed}')
+            print(
+                "[epoch {}] elapsed: {} loss: {}".format(
+                    epoch + 1, elapsed, epoch_loss / print_iter
+                )
+            )
+            logger.info(f"epoch : {epoch + 1}/{num_epochs} elapsed : {elapsed}")
+
