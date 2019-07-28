@@ -19,12 +19,12 @@ from data_loader import feed_infer
 from data_local_loader import test_data_loader, data_loader_with_split
 from evaluation import evaluation_metrics
 
-try:
-    import nsml
-    from nsml import DATASET_PATH, IS_ON_NSML
-    TRAIN_DATASET_PATH = os.path.join(DATASET_PATH, 'train', 'train_data')
-except:    
-    IS_ON_NSML=False
+import nsml
+from nsml import DATASET_PATH, IS_ON_NSML
+
+if IS_ON_NSML:
+    TRAIN_DATASET_PATH = os.path.join(DATASET_PATH, "train", "train_data")
+else:
     TRAIN_DATASET_PATH = "../food_img/"
 
 
@@ -228,7 +228,7 @@ if __name__ == "__main__":
     eval_split = config.eval_split
     mode = config.mode
 
-    model = ImplementYourself.get_resnet50(num_classes=num_classes)
+    model = ImplementYourself.get_resnet101(num_classes=num_classes)
     loss_fn = nn.CrossEntropyLoss()
     ImplementYourself.init_weight(model)
 
@@ -263,7 +263,7 @@ if __name__ == "__main__":
         for epoch in range(num_epochs):
             epoch_start_time_ = datetime.datetime.now()
             scheduler.step()
-            model.train()            
+            model.train()
             for iter_, data in enumerate(tr_loader):
                 _, x, label = data
                 if cuda:
@@ -288,16 +288,20 @@ if __name__ == "__main__":
                         logger.info(
                             f"epoch : {_epoch}/{num_epochs}, loss : {loss.item()}, elapsed : {elapsed}"
                         )
-                    nsml.report(summary=True, scope=locals(), epoch=epoch, total_epoch=num_epochs, train_loss=loss.item())
+                    nsml.report(
+                        summary=True,
+                        scope=locals(),
+                        epoch=epoch,
+                        total_epoch=num_epochs,
+                        train_loss=loss.item(),
+                    )
                     nsml.save(str(epoch + 1))
                     time_ = datetime.datetime.now()
             eval_result = local_eval(model, val_loader, val_label)
             elapsed = datetime.datetime.now() - epoch_start_time_
-            print(
-                "[epoch {}] elapsed: {}".format(
-                    epoch + 1, elapsed
-                )
-            )
+            print("[epoch {}] elapsed: {}".format(epoch + 1, elapsed))
             if IS_ON_NSML:
-                logger.info(f"epoch : {epoch + 1}, elapsed : {elapsed}, eval_result : {eval_result}")
+                logger.info(
+                    f"epoch : {epoch + 1}, elapsed : {elapsed}, eval_result : {eval_result}"
+                )
 
