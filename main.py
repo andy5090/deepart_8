@@ -19,11 +19,13 @@ from data_loader import feed_infer
 from data_local_loader import test_data_loader, data_loader_with_split
 from evaluation import evaluation_metrics
 
-import nsml
-from nsml import DATASET_PATH
-
-# TRAIN_DATASET_PATH = os.path.join(DATASET_PATH, 'train', 'train_data')
-TRAIN_DATASET_PATH = "../food_img/"
+try:
+    import nsml
+    from nsml import DATASET_PATH, IS_ON_NSML
+    TRAIN_DATASET_PATH = os.path.join(DATASET_PATH, 'train', 'train_data')
+except:    
+    IS_ON_NSML=False
+    TRAIN_DATASET_PATH = "../food_img/"
 
 
 def _infer(model, root_path, test_loader=None, local_val=False):
@@ -90,7 +92,7 @@ def _infer(model, root_path, test_loader=None, local_val=False):
     return top1_reference_ids
 
 
-def local_eval(model, test_loader=None, test_label_file=None):
+def local_eval(model, test_loader=None, test_label_file="../food_img/food_label.txt"):
     prediction_file = "pred_train.txt"
     feed_infer(
         prediction_file,
@@ -159,7 +161,19 @@ class ImplementYourself(object):
     @staticmethod
     def get_resnet34(num_classes=150):
         return ImplementYourself.FeatResNet(
-            models.ResNet.BasicBlock, [3, 4, 6, 3], num_classes=num_classes
+            models.resnet.BasicBlock, [3, 4, 6, 3], num_classes=num_classes
+        )
+
+    @staticmethod
+    def get_resnet50(num_classes=150):
+        return ImplementYourself.FeatResNet(
+            models.resnet.Bottleneck, [3, 4, 6, 3], num_classes=num_classes
+        )
+
+    @staticmethod
+    def get_resnet101(num_classes=150):
+        return ImplementYourself.FeatResNet(
+            models.resnet.Bottleneck, [3, 4, 23, 3], num_classes=num_classes
         )
 
     @staticmethod
@@ -195,6 +209,7 @@ if __name__ == "__main__":
     args.add_argument("--num_epochs", type=int, default=100)
     args.add_argument("--print_iter", type=int, default=10)
     args.add_argument("--eval_split", type=str, default="val")
+    args.add_argument("--batch_size", type=int, default=256)
 
     # reserved for nsml
     args.add_argument("--mode", type=str, default="train")
@@ -203,6 +218,7 @@ if __name__ == "__main__":
 
     config = args.parse_args()
 
+    batch_size = config.batch_size
     train_split = config.train_split
     num_classes = config.num_classes
     base_lr = config.lr
@@ -212,7 +228,7 @@ if __name__ == "__main__":
     eval_split = config.eval_split
     mode = config.mode
 
-    model = ImplementYourself.get_resnet34(num_classes=num_classes)
+    model = ImplementYourself.get_resnet50(num_classes=num_classes)
     loss_fn = nn.CrossEntropyLoss()
     ImplementYourself.init_weight(model)
 
@@ -228,18 +244,16 @@ if __name__ == "__main__":
         nsml.paused(scope=locals())
 
     if mode == "train":
-        # TODO 아래 트레이닝 코드도 베이스라인입니다. 변형 또는 새로 구현 가능합니다.
-        logger = logging.getLogger("ResNet18")
-        logger.setLevel(logging.INFO)
-
-        fileHandler = logging.FileHandler("./test.log")
-        streamHandler = logging.StreamHandler()
-
-        logger.addHandler(fileHandler)
-        logger.addHandler(streamHandler)
+        if IS_ON_NSML:
+            logger = logging.getLogger("ResNet")
+            logger.setLevel(logging.INFO)
+            fileHandler = logging.FileHandler("./test.log")
+            streamHandler = logging.StreamHandler()
+            logger.addHandler(fileHandler)
+            logger.addHandler(streamHandler)
 
         tr_loader, val_loader, val_label = data_loader_with_split(
-            root=TRAIN_DATASET_PATH, train_split=train_split
+            root=TRAIN_DATASET_PATH, train_split=train_split, batch_size=batch_size
         )
         time_ = datetime.datetime.now()
         num_batches = len(tr_loader)
@@ -249,8 +263,7 @@ if __name__ == "__main__":
         for epoch in range(num_epochs):
             epoch_start_time_ = datetime.datetime.now()
             scheduler.step()
-            model.train()
-            epoch_loss = 0
+            model.train()            
             for iter_, data in enumerate(tr_loader):
                 _, x, label = data
                 if cuda:
@@ -258,9 +271,6 @@ if __name__ == "__main__":
                     label = label.cuda()
                 pred = model(x)
                 loss = loss_fn(pred, label)
-
-                epoch_loss += loss
-
                 optimizer.zero_grad()
                 loss.backward()
                 optimizer.step()
@@ -274,17 +284,20 @@ if __name__ == "__main__":
                             _epoch, num_epochs, loss.item(), elapsed, expected
                         )
                     )
-                    logger.info(
-                        f"epoch : {_epoch}/{num_epochs} loss : {loss.item()} elapsed : {elapsed}"
-                    )
+                    if IS_ON_NSML:
+                        logger.info(
+                            f"epoch : {_epoch}/{num_epochs}, loss : {loss.item()}, elapsed : {elapsed}"
+                        )
+                    nsml.report(summary=True, scope=locals(), epoch=epoch, total_epoch=num_epochs, train_loss=loss.item())
                     nsml.save(str(epoch + 1))
                     time_ = datetime.datetime.now()
-            local_eval(model, val_loader, val_label)
+            eval_result = local_eval(model, val_loader, val_label)
             elapsed = datetime.datetime.now() - epoch_start_time_
             print(
-                "[epoch {}] elapsed: {} loss: {}".format(
-                    epoch + 1, elapsed, epoch_loss / print_iter
+                "[epoch {}] elapsed: {}".format(
+                    epoch + 1, elapsed
                 )
             )
-            logger.info(f"epoch : {epoch + 1}/{num_epochs} elapsed : {elapsed}")
+            if IS_ON_NSML:
+                logger.info(f"epoch : {epoch + 1}, elapsed : {elapsed}, eval_result : {eval_result}")
 
