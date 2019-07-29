@@ -19,6 +19,8 @@ from data_loader import feed_infer
 from data_local_loader import test_data_loader, data_loader_with_split
 from evaluation import evaluation_metrics
 
+import inceptionResnetV2
+
 import nsml
 from nsml import DATASET_PATH, IS_ON_NSML
 
@@ -228,7 +230,10 @@ if __name__ == "__main__":
     eval_split = config.eval_split
     mode = config.mode
 
-    model = ImplementYourself.get_resnet101(num_classes=num_classes)
+    # model = ImplementYourself.get_resnet50(num_classes=num_classes)
+    model = inceptionResnetV2.inceptionresnetv2(
+        num_classes=num_classes, pretrained=None
+    )
     loss_fn = nn.CrossEntropyLoss()
     ImplementYourself.init_weight(model)
 
@@ -292,7 +297,7 @@ if __name__ == "__main__":
                         summary=True,
                         scope=locals(),
                         epoch=epoch,
-                        total_epoch=num_epochs,
+                        total_epoch=_epoch,
                         train_loss=loss.item(),
                     )
                     nsml.save(str(epoch + 1))
