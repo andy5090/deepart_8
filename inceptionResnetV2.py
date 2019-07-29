@@ -319,15 +319,17 @@ class InceptionResNetV2(nn.Module):
         x = self.conv2d_7b(x)
         return x
 
-    def logits(self, features):
+    def logits(self, features, extract=False):
         x = self.avgpool_1a(features)
         x = x.view(x.size(0), -1)
+        if extract:
+            return x
         x = self.last_linear(x)
         return x
 
-    def forward(self, input):
+    def forward(self, input, extract=False):
         x = self.features(input)
-        x = self.logits(x)
+        x = self.logits(x, extract=extract)
         return x
 
 def inceptionresnetv2(num_classes=1000, pretrained='imagenet'):
