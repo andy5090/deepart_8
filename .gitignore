@@ -1,3 +1,5 @@
 /__pyache__
+/__pyache__/*.*
 /.vscode
 /example_images
+test.log
