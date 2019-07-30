@@ -206,7 +206,7 @@ if __name__ == "__main__":
     args = argparse.ArgumentParser()
     args.add_argument("--train_split", type=float, default=0.9)
     args.add_argument("--num_classes", type=int, default=150)
-    args.add_argument("--lr", type=int, default=0.01)
+    args.add_argument("--lr", type=float, default=0.01)
     args.add_argument("--cuda", type=bool, default=True)
     args.add_argument("--num_epochs", type=int, default=100)
     args.add_argument("--print_iter", type=int, default=10)
@@ -230,9 +230,9 @@ if __name__ == "__main__":
     eval_split = config.eval_split
     mode = config.mode
 
-    # model = ImplementYourself.get_resnet50(num_classes=num_classes)
+    #model = ImplementYourself.get_resnet34(num_classes=num_classes)
     model = inceptionResnetV2.inceptionresnetv2(
-        num_classes=num_classes, pretrained=None
+       num_classes=num_classes, pretrained=None
     )
     loss_fn = nn.CrossEntropyLoss()
     ImplementYourself.init_weight(model)
@@ -263,7 +263,7 @@ if __name__ == "__main__":
         time_ = datetime.datetime.now()
         num_batches = len(tr_loader)
 
-        local_eval(model, val_loader, val_label)
+        eval_result = local_eval(model, val_loader, val_label)
 
         for epoch in range(num_epochs):
             epoch_start_time_ = datetime.datetime.now()
@@ -299,6 +299,7 @@ if __name__ == "__main__":
                         epoch=epoch,
                         total_epoch=_epoch,
                         train_loss=loss.item(),
+                        eval_result=eval_result,
                     )
                     nsml.save(str(epoch + 1))
                     time_ = datetime.datetime.now()
